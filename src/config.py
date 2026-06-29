@@ -25,3 +25,4 @@ class AppConfig:
     logs_dir: Path = Path("logs")
     pointer_smoothing: float = 0.35
     mirror_pointer_x: bool = True
+    max_frames: int | None = None

@@ -16,6 +16,7 @@ class PointerMoveResult:
     target_y: int
     moved: bool
     note: str = ""
+    screen_source: str = ""
 
 
 class PointerController:
@@ -30,40 +31,68 @@ class PointerController:
         self.mirror_x = mirror_x
         self._last_x: float | None = None
         self._last_y: float | None = None
-        self._screen_width, self._screen_height = self._detect_screen_size()
+        (
+            self._screen_width,
+            self._screen_height,
+            self._screen_source,
+        ) = self._detect_screen_size()
 
     def move_to_index_tip(self, hand_landmarks: object) -> PointerMoveResult:
         tip = self._index_tip(hand_landmarks)
         if tip is None:
-            return PointerMoveResult(0, 0, False, "没有可用的食指指尖坐标")
+            return PointerMoveResult(
+                0,
+                0,
+                False,
+                "没有可用的食指指尖坐标",
+                self._screen_source,
+            )
 
         target_x, target_y = self._landmark_to_screen(tip)
         smooth_x, smooth_y = self._smooth(target_x, target_y)
 
         if self.dry_run:
-            return PointerMoveResult(smooth_x, smooth_y, False, "dry-run 不移动鼠标")
+            return PointerMoveResult(
+                smooth_x,
+                smooth_y,
+                False,
+                f"dry-run 不移动鼠标，screen={self._screen_source}",
+                self._screen_source,
+            )
 
         try:
             import pyautogui
 
             pyautogui.FAILSAFE = True
             pyautogui.moveTo(smooth_x, smooth_y, duration=0)
-            return PointerMoveResult(smooth_x, smooth_y, True, "指针已移动")
+            return PointerMoveResult(
+                smooth_x,
+                smooth_y,
+                True,
+                f"指针已移动，screen={self._screen_source}",
+                self._screen_source,
+            )
         except Exception as exc:  # pragma: no cover - depends on local desktop
-            return PointerMoveResult(smooth_x, smooth_y, False, str(exc))
+            return PointerMoveResult(
+                smooth_x,
+                smooth_y,
+                False,
+                str(exc),
+                self._screen_source,
+            )
 
-    def _detect_screen_size(self) -> tuple[int, int]:
+    def _detect_screen_size(self) -> tuple[int, int, str]:
         if self.dry_run:
-            return 1920, 1080
+            return 1920, 1080, "dry-run-default"
 
         try:
             import pyautogui
 
             pyautogui.FAILSAFE = True
             size = pyautogui.size()
-            return int(size.width), int(size.height)
+            return int(size.width), int(size.height), "pyautogui"
         except Exception:
-            return 1920, 1080
+            return 1920, 1080, "fallback"
 
     def _landmark_to_screen(self, landmark: LandmarkLike) -> tuple[int, int]:
         x = 1.0 - landmark.x if self.mirror_x else landmark.x

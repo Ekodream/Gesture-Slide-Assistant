@@ -62,9 +62,11 @@ def _main_loop(
 ) -> None:
     last_action = Action.NONE
     last_pointer_note = ""
+    frame_count = 0
 
     while True:
         frame = camera.read()
+        frame_count += 1
         hand_landmarks = tracker.detect(frame)
         raw_gesture = classify_hand(hand_landmarks)
         debounce_result = debouncer.update(raw_gesture)
@@ -80,7 +82,7 @@ def _main_loop(
                 config.dry_run,
             )
 
-        if _should_move_pointer(raw_gesture, debounce_result, hand_landmarks):
+        if _should_move_pointer(raw_gesture, hand_landmarks):
             pointer_result = pointer.move_to_index_tip(hand_landmarks)
             last_pointer_note = (
                 f"pointer=({pointer_result.target_x}, {pointer_result.target_y}) "
@@ -99,6 +101,9 @@ def _main_loop(
             cv2.imshow("Gesture Slide Assistant", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
+
+        if _reached_frame_limit(frame_count, config.max_frames):
+            break
 
 
 def _execute_and_log(
@@ -123,14 +128,13 @@ def _execute_and_log(
 
 def _should_move_pointer(
     raw_gesture: Gesture,
-    debounce_result: DebounceResult,
     hand_landmarks: object | None,
 ) -> bool:
-    return (
-        hand_landmarks is not None
-        and raw_gesture == Gesture.INDEX_ONLY
-        and debounce_result.stable_gesture == Gesture.INDEX_ONLY
-    )
+    return hand_landmarks is not None and raw_gesture == Gesture.INDEX_ONLY
+
+
+def _reached_frame_limit(frame_count: int, max_frames: int | None) -> bool:
+    return max_frames is not None and frame_count >= max_frames
 
 
 def _draw_debug_overlay(

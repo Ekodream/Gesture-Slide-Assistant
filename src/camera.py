@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import cv2
 
@@ -24,7 +25,7 @@ class VideoCamera:
                 f"无法打开摄像头 {self.index}。请检查编号、系统权限，或是否被其他应用占用。"
             )
 
-    def read(self):
+    def read(self) -> Any:
         if self._capture is None or not self._capture.isOpened():
             raise CameraError("摄像头尚未打开。")
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import cv2
 import mediapipe as mp
 
@@ -17,14 +19,14 @@ class HandTracker:
             min_tracking_confidence=config.min_tracking_confidence,
         )
 
-    def detect(self, frame_bgr):
+    def detect(self, frame_bgr: Any) -> Any | None:
         rgb_frame = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         results = self._hands.process(rgb_frame)
         if not results.multi_hand_landmarks:
             return None
         return results.multi_hand_landmarks[0]
 
-    def draw_landmarks(self, frame_bgr, hand_landmarks) -> None:
+    def draw_landmarks(self, frame_bgr: Any, hand_landmarks: Any | None) -> None:
         if hand_landmarks is None:
             return
         self._drawing.draw_landmarks(

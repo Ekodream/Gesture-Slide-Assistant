@@ -34,7 +34,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=1.0,
         help="离散动作重复触发的间隔秒数，默认 1.0",
     )
+    parser.add_argument(
+        "--max-frames",
+        type=_positive_int,
+        default=None,
+        help="最多处理的帧数，主要用于非 debug 模式下的自动化 smoke test",
+    )
     return parser.parse_args(argv)
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("--max-frames 必须大于等于 1")
+    return parsed
 
 
 def build_config(args: argparse.Namespace) -> AppConfig:
@@ -44,6 +57,7 @@ def build_config(args: argparse.Namespace) -> AppConfig:
         debug=args.debug,
         stable_frames=args.stable_frames,
         cooldown_seconds=args.cooldown,
+        max_frames=args.max_frames,
         logs_dir=Path("logs"),
     )
 
