@@ -49,16 +49,19 @@
 
 真实模式下已启用 PyAutoGUI `FAILSAFE`。如果鼠标控制异常，可将鼠标移动到屏幕角落触发安全停止。项目不会自动执行鼠标点击。
 
+真实控制前可以使用 `--start-delay 5` 留出窗口切换时间。程序会先提醒即将进入真实控制模式，提示用户切换到 PPT / PDF / 浏览器演示窗口，并在倒计时结束后才开始识别。
+
 ### 日志与测试
 
 - 离散动作会写入 `logs/events_YYYYMMDD.csv`，便于复盘识别和控制行为。
-- 核心逻辑已有 pytest 测试覆盖，包括手势分类、防抖、命令执行、指针映射、事件日志和入口参数等。
+- 核心逻辑已有 pytest 测试覆盖，包括手势分类、防抖、命令执行、指针映射、事件日志、配置文件加载、启动倒计时和入口参数等。
 
 ## 项目结构
 
 ```text
 .
 ├── main.py                   # 命令行入口，负责参数解析和配置构建
+├── config.json               # 可选 JSON 配置文件示例
 ├── requirements.txt          # Python 依赖列表
 ├── src/
 │   ├── app.py                # 应用主循环
@@ -69,6 +72,7 @@
 │   ├── command_executor.py   # 键盘控制动作执行
 │   ├── pointer.py            # 指针坐标映射与平滑
 │   ├── event_logger.py       # CSV 事件日志
+│   ├── config_loader.py      # JSON 配置文件读取与校验
 │   └── config.py             # 应用配置与默认值
 ├── tests/                    # 自动化测试
 ├── docs/                     # 人工测试、调试记录等文档
@@ -132,12 +136,54 @@ python main.py --help
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
+| `--config` | 无 | JSON 配置文件路径；命令行参数会覆盖配置文件 |
 | `--camera` | `0` | 摄像头编号 |
 | `--dry-run` | 关闭 | 只打印和记录动作，不控制键盘或鼠标 |
 | `--debug` | 关闭 | 显示摄像头窗口、关键点和调试信息 |
 | `--stable-frames` | `8` | 触发离散命令前要求连续稳定的帧数 |
 | `--cooldown` | `1.0` | 同类离散命令重复触发的冷却时间，单位为秒 |
 | `--max-frames` | 无限制 | 最多处理的帧数，主要用于 smoke test |
+| `--start-delay` | `0` | 非 dry-run 模式启动识别前的倒计时秒数 |
+
+`--dry-run` 和 `--debug` 也支持反向写法 `--no-dry-run`、`--no-debug`，用于覆盖配置文件中的布尔值。
+
+### 使用配置文件
+
+项目根目录提供了一个 `config.json` 示例，可以把摄像头编号、dry-run/debug、稳定帧、冷却时间、MediaPipe 置信度、按键映射和指针平滑参数集中放在文件里：
+
+```powershell
+python main.py --config config.json
+```
+
+配置文件缺失时会使用内置默认配置。配置文件字段可以只写需要调整的部分，缺失字段会保留默认值。命令行参数优先级更高，例如：
+
+```powershell
+python main.py --config config.json --camera 1 --no-debug --stable-frames 12
+```
+
+支持的配置字段示例：
+
+```json
+{
+  "camera_index": 0,
+  "dry_run": false,
+  "debug": true,
+  "stable_frames": 8,
+  "cooldown_seconds": 1.0,
+  "min_detection_confidence": 0.6,
+  "min_tracking_confidence": 0.6,
+  "key_bindings": {
+    "next_page": "right",
+    "previous_page": "left",
+    "start_pause": "f5"
+  },
+  "pointer_smoothing": 0.35,
+  "mirror_pointer_x": true,
+  "start_delay_seconds": 0
+}
+```
+
+配置文件会校验 JSON 格式、字段名和字段类型。格式错误、未知字段或类型不匹配会输出 `配置错误` 并退出，避免拼错配置项后静默使用默认值。
 
 ### 安全调试识别效果
 
@@ -175,6 +221,27 @@ python main.py --camera 0 --dry-run --max-frames 1
 python main.py --camera 0 --debug
 ```
 
+如果需要留出时间切换窗口，可以加入启动倒计时：
+
+```powershell
+python main.py --camera 0 --debug --start-delay 5
+```
+
+非 dry-run 模式下设置倒计时后，程序会提示即将进入真实控制模式，并逐秒倒数；倒计时结束后才开始识别。倒计时期间可按 Ctrl+C 正常退出。
+
+倒计时输出示例：
+
+```text
+即将进入真实控制模式。
+请在 5 秒内切换到 PPT/PDF 窗口。
+5...
+4...
+3...
+2...
+1...
+开始识别。
+```
+
 运行期间可使用已支持手势进行控制：
 
 | 操作 | 手势 |
@@ -207,6 +274,8 @@ conda run --no-capture-output -n Gesture python -m pytest
 - dry-run 命令执行路径；
 - 指针坐标映射和平滑；
 - CSV 事件日志写入；
+- JSON 配置文件读取、缺失字段默认值和错误配置提示；
+- 真实控制启动倒计时、dry-run 跳过倒计时和 Ctrl+C 退出；
 - 命令行参数解析；
 - 摄像头错误路径；
 - 主循环辅助逻辑。

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+import time
+
 import cv2
 
 from src.camera import CameraError, VideoCamera
@@ -35,6 +38,7 @@ def run_app(config: AppConfig) -> int:
             mirror_x=config.mirror_pointer_x,
         )
         logger = EventLogger(config.logs_dir)
+        _run_start_delay(config)
         _main_loop(config, camera, tracker, debouncer, executor, pointer, logger)
         return 0
     except CameraError as exc:
@@ -135,6 +139,22 @@ def _should_move_pointer(
 
 def _reached_frame_limit(frame_count: int, max_frames: int | None) -> bool:
     return max_frames is not None and frame_count >= max_frames
+
+
+def _run_start_delay(
+    config: AppConfig,
+    sleeper: Callable[[float], None] = time.sleep,
+) -> None:
+    delay_seconds = config.start_delay_seconds
+    if config.dry_run or delay_seconds <= 0:
+        return
+
+    print("即将进入真实控制模式。")
+    print(f"请在 {delay_seconds} 秒内切换到 PPT/PDF 窗口。")
+    for remaining in range(delay_seconds, 0, -1):
+        print(f"{remaining}...")
+        sleeper(1)
+    print("开始识别。")
 
 
 def _draw_debug_overlay(

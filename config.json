@@ -1,0 +1,17 @@
+{
+  "camera_index": 0,
+  "dry_run": false,
+  "debug": true,
+  "stable_frames": 8,
+  "cooldown_seconds": 1.0,
+  "min_detection_confidence": 0.6,
+  "min_tracking_confidence": 0.6,
+  "key_bindings": {
+    "next_page": "right",
+    "previous_page": "left",
+    "start_pause": "f5"
+  },
+  "pointer_smoothing": 0.35,
+  "mirror_pointer_x": true,
+  "start_delay_seconds": 0
+}
